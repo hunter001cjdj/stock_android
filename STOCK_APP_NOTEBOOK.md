@@ -1,431 +1,398 @@
-# 台股分析 Android App 開發筆記
+# 台股 AI 分析 App 筆記
 
-更新日期：2026-03-16
-
-## 0. 目前實作進度
-
-目前 `android-app/` 已完成第一版本地 MVP：
-
-- 假資料 Repository
-- 規則評分引擎
-- 四象限分類
-- 1 到 5 星推薦
-- 推薦 / 不推薦原因
-- 排行榜、精選區塊、篩選區塊、個股詳情、收藏切換
-
-目前尚未完成：
-
-- 真實台股資料串接
-- FastAPI 後端
-- Supabase / Room 持久化
-- XGBoost Ranker
+更新日期：2026-03-17
 
 ## 1. 專案目標
 
-這是一個以學習用途為主的台股分析 Android App，核心目標是：
+這是一個以台股分析為主題的 Android App。
 
-- 提供台股分析與推薦，不串券商下單
-- 依風險與報酬分成四象限
-- 提供 1 到 5 星推薦指數
-- 清楚列出推薦原因與不推薦原因
-- 後續可逐步升級成即時版與模型版
+目前已完成的方向：
 
-目前定位是：
+- Android 手機端 App
+- 繁體中文介面
+- 透明科技感 UI
+- 依產業分類瀏覽股票
+- 收藏清單
+- AI 分析助理入口
+- 串接 TWSE 官方開放資料
+- 可產出 APK 並在 BlueStacks 成功執行
 
-- 先做分析推薦
-- 先做人看得懂的規則
-- 先用免費資料來源
-- 自動化買賣留到未來再考慮
+目前定位：
 
-## 2. 最推薦的免費技術組合
+- 這是一個可展示、可安裝、可操作的 Android MVP
+- 前端已完成主要互動流程
+- 資料來源已從本地假資料切到官方真資料讀取
+- 目前沒有獨立後端伺服器，資料由 App 直接向官方資料源抓取
+
+## 2. 專案結構
+
+專案根目錄：
+
+- `tw-stock-android/`
+
+主要目錄：
+
+- `android-app/`
+  Android App 原始碼
+- `dist/`
+  已產出的 APK
+- `README.md`
+  專案簡介
+- `STOCK_APP_NOTEBOOK.md`
+  專案筆記與執行紀錄
+
+APK 位置：
+
+- `C:\Users\Administrator\Desktop\project\test\tw-stock-android\dist\app-debug.apk`
+- `C:\Users\Administrator\Desktop\project\test\tw-stock-android\dist\app-release-unsigned.apk`
+
+## 3. 技術架構
 
 ### 前端
 
-- `Kotlin`
-- `Jetpack Compose`
-- `Material 3`
-
-原因：
-
-- Android 官方主推
-- 適合快速做排行榜、篩選、個股詳情、收藏頁
-- 後續維護成本低
-
-### App 架構
-
-- `MVVM`
-- `Repository`
-- `ViewModel`
-- `StateFlow`
-
-原因：
-
-- 資料流清楚
-- 適合 API + 本地快取 + UI 狀態管理
-
-### 本地資料庫
-
-- `Room`
-
-原因：
-
-- 官方方案
-- 適合快取股票列表、收藏、最近分析結果
-
-### 後端
-
-- `Python + FastAPI`
-- `APScheduler` 或 `cron`
-
-原因：
-
-- Python 適合資料清洗、特徵工程、模型訓練
-- FastAPI 很適合做分析 API
-
-### 雲端資料庫
-
-- `Supabase Free`
-
-原因：
-
-- 免費方案夠做學習專案
-- 使用 PostgreSQL，查詢分析資料比文件型資料庫直覺
-- 適合存快取、分析結果、使用者偏好、收藏清單
-
-### 最推薦的整體組合
-
-```text
-Android: Kotlin + Compose
-App 架構: MVVM + Repository + ViewModel + StateFlow
-Local DB: Room
-Backend: Python + FastAPI
-Cloud DB: Supabase Free
-Data: TWSE + TPEx + MOPS + FinMind
-Model: 規則評分模型 -> XGBoost Ranker
-```
-
-## 3. 免費資料來源怎麼選
-
-### TWSE
-
-用途：
-
-- 上市公司基本資料
-- 每日成交資訊
-- 法人、融資融券、統計資料
-
-推薦原因：
-
-- 官方來源
-- 是台股分析的核心資料源
-
-### TPEx
-
-用途：
-
-- 上櫃股票資料
-- OTC 交易與統計資料
-
-推薦原因：
-
-- 補足上櫃市場
-- 跟 TWSE 搭配才算完整台股池
-
-### MOPS
-
-用途：
-
-- 財報
-- 月營收
-- 重大訊息
-- 公司公告
-
-推薦原因：
-
-- 做優質股與成長股分析時非常重要
-- 很適合產出推薦原因與不推薦原因
-
-### FinMind
-
-用途：
-
-- 快速驗證資料流程
-- MVP 階段 API 資料來源
-- 回測與模型實驗
-
-推薦原因：
-
-- 對學習與原型階段很友善
-- 可加速第一版落地
-
-### 關於免費即時資料
-
-最務實的結論是：
-
-- `日更分析` 完全可行
-- `分鐘級更新` 有機會做到
-- `完整逐筆即時行情` 不適合一開始假設成全免費
-
-所以第一版建議先做：
-
-```text
-收盤後分析 + 分鐘級更新 + 快取
-```
-
-## 4. 模型推薦
-
-## 第一階段主模型：規則評分模型
-
-推薦程度：`5 星`
-
-推薦原因：
-
-- 最容易實作
-- 最好解釋
-- 很適合先做四象限分類
-- 可以直接輸出推薦原因與不推薦原因
-
-適合的指標：
-
-- 營收年增率
-- EPS 成長率
-- ROE
-- 毛利率 / 營益率
-- 負債比
-- 本益比 / 股價淨值比
-- 近 20 日 / 60 日趨勢
-- 成交量變化
-- 波動率
-
-## 第二階段升級：XGBoost Ranker
-
-推薦程度：`4.5 星`
-
-推薦原因：
-
-- 適合股票排序推薦
-- 對表格型金融資料通常表現不錯
-- 能補足規則模型的限制
-
-## 第三階段備選：LightGBM Ranker
-
-推薦程度：`4 星`
-
-推薦原因：
-
-- 速度快
-- 也適合 ranking 任務
-
-## Baseline：Random Forest
-
-推薦程度：`3 星`
-
-推薦原因：
-
-- 可做 baseline
-- 好上手
-
-## 暫不建議作主模型
-
-- `Prophet`
-- `單純時間序列價格預測`
-
-原因：
-
-- 你現在要的是選股推薦，不只是預測價格
-- 台股分析要結合基本面、價量、風險與報酬
-
-## 5. 四象限與星等邏輯
-
-### 風險分數 Risk Score
-
-分數範圍：`0 ~ 100`
-
-可參考項目：
-
-- 波動率
-- 回撤
-- 負債比
-- 估值偏高程度
-- 短線過熱程度
-
-### 報酬分數 Reward Score
-
-分數範圍：`0 ~ 100`
-
-可參考項目：
-
-- 營收年增率
-- EPS 成長率
-- ROE
-- 毛利率 / 營益率
-- 趨勢強度
-
-### 四象限分類
-
-- 高風險高報酬：`Risk >= 60` 且 `Reward >= 60`
-- 低風險高報酬：`Risk < 60` 且 `Reward >= 60`
-- 高風險低報酬：`Risk >= 60` 且 `Reward < 60`
-- 低風險低報酬：`Risk < 60` 且 `Reward < 60`
-
-### 星等建議
-
-- `5 星`：綜合條件優秀，風險與報酬比佳
-- `4 星`：值得關注，條件大致不錯
-- `3 星`：中性觀察
-- `2 星`：偏弱，不優先推薦
-- `1 星`：明顯不推薦
-
-## 6. 推薦與不推薦原因要怎麼寫
-
-### 推薦原因模板
-
-- 營收持續年增
-- EPS 明顯成長
-- ROE 穩定且高於平均
-- 量價結構轉強
-- 估值仍在合理區間
-
-### 不推薦原因模板
-
-- 波動過高
-- 近期回撤過大
-- 負債比偏高
-- 獲利不穩
-- 估值過高
-
-### 輸出格式建議
-
-每檔股票至少輸出：
-
-- 股票代號
-- 股票名稱
-- 風險分數
-- 報酬分數
-- 四象限
-- 星等
-- 推薦原因
-- 不推薦原因
-- 總結
-
-## 7. App 功能範圍
-
-### MVP 必做
-
-- 股票列表頁
-- 排行榜頁
-- 四象限篩選頁
-- 股票詳情頁
-- 1 到 5 星顯示
-- 推薦原因 / 不推薦原因
+- Kotlin
+- Jetpack Compose
+- Material 3
+- ViewModel
+- StateFlow
+
+前端負責：
+
+- 首頁儀表板
+- 產業分類切換
+- 股票清單與個股詳情
 - 收藏功能
+- AI 分析頁
+- 刷新官方資料
 
-### 第二階段
+### 資料層
 
-- 自選股清單
-- 歷史分析結果
-- 每日更新分析
-- 推薦變化追蹤
+- Repository Pattern
+- `StockRepository`
+- `TwseHybridStockRepository`
 
-### 後續再做
+資料層負責：
 
-- 更高頻更新
-- 模型排序版本
-- 通知功能
-- 自動化交易研究
+- 讀取官方資料
+- 整理報價與估值欄位
+- 產出 App 顯示用的 `StockAnalysis`
+- 依規則計算風險分數、報酬分數、綜合分數
 
-## 8. 資料流架構
+### 伺服器 / 後端
 
-```text
-TWSE / TPEx / MOPS / FinMind
-        ->
-Python 抓資料與清洗
-        ->
-規則評分 / 排序模型
-        ->
-Supabase 儲存分析結果
-        ->
-FastAPI 提供 App API
-        ->
-Android App 顯示排行、星等、推薦與不推薦原因
+目前狀態：
+
+- 沒有獨立後端伺服器
+- 沒有 FastAPI
+- 沒有 Supabase
+- 沒有 Room 本地資料庫
+
+目前架構屬於：
+
+`Android App -> TWSE 官方開放資料`
+
+也就是說，現在的版本是：
+
+- 前端 App 直接打官方 API
+- 在手機端本地完成分析與 UI 呈現
+
+### 未來後端規劃
+
+後續若要升級成更完整架構，可加入：
+
+- FastAPI
+- Supabase / PostgreSQL
+- Room 快取
+- 排程刷新
+- AI 服務 API
+
+未來完整型架構可長成：
+
+`TWSE / 其他資料源 -> FastAPI -> DB / Cache -> Android App`
+
+## 4. Android App 架構
+
+目前採用：
+
+- 單 Activity 架構
+- Compose UI
+- ViewModel 管理狀態
+- Repository 提供資料
+
+主要流程：
+
+1. `MainActivity` 啟動
+2. 建立 `StockAnalyzerViewModel`
+3. `ViewModel` 初始化時自動刷新資料
+4. `TwseHybridStockRepository` 讀取 TWSE 官方資料
+5. 轉成 `StockAnalysis`
+6. UI 顯示股票卡片、收藏、AI 分析
+
+## 5. 主要程式碼位置
+
+### App 入口
+
+- `android-app/app/src/main/java/com/example/twstockanalyzer/MainActivity.kt`
+
+用途：
+
+- 啟動 App
+- 建立 `StockAnalyzerViewModel`
+- 將畫面交給 `StockAnalyzerApp`
+
+### ViewModel
+
+- `android-app/app/src/main/java/com/example/twstockanalyzer/ui/StockAnalyzerViewModel.kt`
+
+用途：
+
+- 管理 UI 狀態
+- 切換分頁
+- 切換產業分類
+- 處理收藏
+- 呼叫刷新
+- 產生 AI 分析文字
+
+### UI 主畫面
+
+- `android-app/app/src/main/java/com/example/twstockanalyzer/ui/StockAnalyzerApp.kt`
+
+用途：
+
+- 顯示首頁儀表板
+- 顯示產業分類
+- 顯示焦點清單
+- 顯示股票卡片
+- 顯示收藏頁
+- 顯示 AI 分析頁
+
+### Repository
+
+- `android-app/app/src/main/java/com/example/twstockanalyzer/data/repository/StockRepository.kt`
+- `android-app/app/src/main/java/com/example/twstockanalyzer/data/repository/TwseHybridStockRepository.kt`
+
+用途：
+
+- 定義資料來源介面
+- 從 TWSE 官方資料源抓資料
+- 轉換成 App 所需模型
+
+### Domain Model
+
+- `android-app/app/src/main/java/com/example/twstockanalyzer/domain/model/StockAnalysis.kt`
+- `android-app/app/src/main/java/com/example/twstockanalyzer/domain/model/StockSector.kt`
+- `android-app/app/src/main/java/com/example/twstockanalyzer/domain/model/RiskRewardQuadrant.kt`
+
+用途：
+
+- 定義股票分析資料格式
+- 定義產業分類
+- 定義風險 / 報酬象限
+
+## 6. 真實資料來源
+
+目前使用的官方資料來源：
+
+- TWSE 收盤與成交資訊
+  - `https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`
+- TWSE 殖利率 / 本益比 / 股價淨值比
+  - `https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL`
+
+目前資料特性：
+
+- 使用官方開放資料
+- 可直接在 App 中刷新
+- 非逐筆成交等級
+- 屬於真資料分析版，不是示範假資料版
+
+## 7. 分析邏輯
+
+目前分析引擎會根據以下欄位做綜合判斷：
+
+- 收盤價
+- 漲跌幅
+- 成交量
+- 本益比
+- 股價淨值比
+- 殖利率
+
+目前輸出：
+
+- `rewardScore`
+- `riskScore`
+- `finalScore`
+- 星等
+- 推薦理由
+- 風險提醒
+- 摘要說明
+
+## 8. 產業分類邏輯
+
+目前 App 以產業分類作為主要瀏覽方式。
+
+已支援分類：
+
+- 全部
+- AI 伺服器
+- 半導體
+- 科技電子
+- 金融
+- 航運
+- 傳產
+- ETF
+- 其他
+
+用途：
+
+- 讓使用者不是只看單一排行
+- 可以依產業快速縮小觀察範圍
+- 更符合台股實際看盤習慣
+
+## 9. UI 功能
+
+目前已完成的頁面與功能：
+
+### 總覽頁
+
+- 儀表板 Header
+- 更新時間
+- 資料來源顯示
+- 刷新按鈕
+- 市場快照
+- 產業分類切換
+- 今日焦點清單
+- 股票卡片列表
+- 個股詳情
+
+### 收藏頁
+
+- 加入收藏
+- 取消收藏
+- 集中查看所有收藏股
+- 從收藏頁回到個股詳情
+
+### AI 分析頁
+
+- AI 提示詞按鈕
+- 顯示最新分析
+- 顯示歷史訊息
+- 根據目前選中的股票產生摘要
+
+## 10. 安裝與建置成功流程
+
+### 開發環境
+
+最小成功建置條件：
+
+- Windows
+- JDK 17
+- Android SDK
+- Gradle Wrapper
+
+目前專案設定：
+
+- `compileSdk = 34`
+- `targetSdk = 34`
+- `minSdk = 26`
+- Java 17
+- Kotlin JVM target 17
+
+### App 權限
+
+目前已加入：
+
+- `INTERNET`
+
+位置：
+
+- `android-app/app/src/main/AndroidManifest.xml`
+
+### 建置方式
+
+在 `android-app/` 目錄下執行：
+
+```powershell
+.\gradlew.bat assembleDebug
 ```
 
-## 9. 開發 SOP
+成功後產物位置：
 
-### Phase 1：定義規則
+- `android-app/app/build/outputs/apk/debug/app-debug.apk`
 
-- [ ] 定義四象限欄位
-- [ ] 定義風險分數公式
-- [ ] 定義報酬分數公式
-- [ ] 定義星等公式
-- [ ] 定義推薦原因模板
-- [ ] 定義不推薦原因模板
+之後再複製到：
 
-### Phase 2：整合資料
+- `dist/app-debug.apk`
 
-- [ ] 串接 TWSE
-- [ ] 串接 TPEx
-- [ ] 串接 MOPS
-- [ ] 串接 FinMind 做 MVP 驗證
-- [ ] 統一欄位格式與股票代號
+## 11. 執行成功方式
 
-### Phase 3：建立分析引擎
+目前確認可用的執行方式：
 
-- [ ] 實作規則評分模型
-- [ ] 產出四象限分類
-- [ ] 產出 1 到 5 星
-- [ ] 產出推薦與不推薦原因
-- [ ] 輸出分析 JSON
+- 使用 BlueStacks 安裝 APK
 
-### Phase 4：建立後端
+步驟：
 
-- [ ] 建資料抓取腳本
-- [ ] 建特徵工程流程
-- [ ] 建 FastAPI API
-- [ ] 建每日更新排程
-- [ ] 存進 Supabase
+1. 開啟 BlueStacks
+2. 把 `dist/app-debug.apk` 拖入 BlueStacks
+3. 安裝完成後打開 App
+4. 進入首頁
+5. 使用產業分類切換、收藏、AI 分析等功能
 
-### Phase 5：建立 Android App
+目前確認成功：
 
-- [ ] 建 Compose 專案骨架
-- [ ] 建首頁排行榜
-- [ ] 建四象限篩選頁
-- [ ] 建股票詳情頁
-- [ ] 建收藏頁
-- [ ] 用 Room 快取
+- App 可在 BlueStacks 開啟
+- 中文介面可顯示
+- 新版透明科技風 UI 可顯示
+- 收藏頁可使用
+- AI 分析頁可使用
 
-### Phase 6：升級模型
+## 12. APK 發佈方式
 
-- [ ] 定義未來報酬標籤
-- [ ] 訓練 XGBoost Ranker
-- [ ] 用 LightGBM 做對照
-- [ ] 比較規則模型與排序模型
+目前已完成 GitHub 發佈。
 
-### Phase 7：驗證與調整
+倉庫：
 
-- [ ] 檢查推薦理由是否合理
-- [ ] 檢查高星股票後續表現
-- [ ] 調整指標權重
-- [ ] 調整 UI 呈現方式
+- `https://github.com/hunter001cjdj/android_stock`
 
-## 10. 開發順序建議
+下載位置：
 
-最穩的順序是：
+- GitHub 頁面：
+  - `https://github.com/hunter001cjdj/android_stock/blob/main/downloads/app-debug.apk`
+- 直接下載：
+  - `https://raw.githubusercontent.com/hunter001cjdj/android_stock/main/downloads/app-debug.apk`
 
-1. 先做假資料 UI
-2. 先做規則模型
-3. 再串免費資料
-4. 再做本地快取與雲端儲存
-5. 最後再上 XGBoost Ranker
+用途：
 
-## 11. 目前外部參考
+- 可直接用手機點擊下載 APK
+- 可分享給其他裝置安裝測試
 
-- TWSE：https://www.twse.com.tw/
-- TPEx：https://www.tpex.org.tw/
-- MOPS：https://mops.twse.com.tw/
-- FinMind：https://finmindtrade.com/
-- Android Architecture：https://developer.android.com/topic/architecture/recommendations
-- Room：https://developer.android.com/training/data-storage/room
-- Supabase：https://supabase.com/pricing
-- Firebase：https://firebase.google.com/pricing
-- XGBoost Ranking：https://xgboost.readthedocs.io/en/release_2.1.0/tutorials/learning_to_rank.html
+## 13. 當前版本總結
+
+目前這個版本已經達成：
+
+- 有 Android App
+- 有中文 UI
+- 有真資料來源
+- 有產業分類
+- 有收藏功能
+- 有 AI 分析入口
+- 有 APK
+- 可在模擬器類環境成功安裝與操作
+- 可透過 GitHub 連結下載
+
+目前尚未導入，但屬於下一階段可擴充項目：
+
+- FastAPI 後端
+- Supabase
+- Room 快取
+- 真正的 AI API
+- 更高頻或更完整的即時資料源
+
+## 14. 下一步建議
+
+接下來最合理的擴充順序：
+
+1. 把 TWSE / 其他資料源整理成更完整的欄位結構
+2. 補上本地快取
+3. 導入後端 API
+4. 導入真實 AI 分析服務
+5. 補上登入、個人化收藏與推播

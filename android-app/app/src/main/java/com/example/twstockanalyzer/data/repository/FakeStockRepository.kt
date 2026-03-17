@@ -14,6 +14,8 @@ class FakeStockRepository(
             .sortedByDescending { it.finalScore }
     }
 
+    override suspend fun refreshStocks(): List<StockAnalysis> = getStocks()
+
     private val sampleStocks = listOf(
         StockRawData(
             stockId = "2330",

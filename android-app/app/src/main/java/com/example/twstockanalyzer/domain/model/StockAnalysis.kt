@@ -3,6 +3,7 @@ package com.example.twstockanalyzer.domain.model
 data class StockAnalysis(
     val stockId: String,
     val stockName: String,
+    val sector: StockSector,
     val priceLabel: String,
     val dailyChangeLabel: String,
     val starRating: Int,

@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.twstockanalyzer.data.repository.FakeStockRepository
+import com.example.twstockanalyzer.data.repository.TwseHybridStockRepository
 import com.example.twstockanalyzer.ui.StockAnalyzerApp
 import com.example.twstockanalyzer.ui.StockAnalyzerViewModel
 import com.example.twstockanalyzer.ui.theme.TwStockAnalyzerTheme
@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val viewModel = StockAnalyzerViewModel(
-            repository = FakeStockRepository()
+            repository = TwseHybridStockRepository()
         )
 
         setContent {
